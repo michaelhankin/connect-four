@@ -1,0 +1,10 @@
+{
+  "name": "connect-four",
+  "private": true,
+  "version": "1.0.0",
+  "license": "MIT",
+  "workspaces": [
+    "connect-four-client",
+    "connect-four-server"
+  ]
+}
