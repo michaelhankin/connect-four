@@ -1,38 +1,35 @@
 const WebSocket = require("ws");
+const Board = require("./Board");
 
 const wss = new WebSocket.Server({ port: 8080 });
 
-console.log(new Date(), "server listening on port 8080");
-
-function getInitialBoard() {
-  return [
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-  ];
-}
-
-let board = getInitialBoard();
+console.log("server listening on port 8080");
 
 wss.on("connection", (ws) => {
-  console.log(new Date(), "new connection opened");
-  ws.send(JSON.stringify(board));
+  console.log("new connection opened");
+
+  const board = new Board();
+  ws.send(JSON.stringify({ type: "reset", board: board.getState() }));
 
   ws.on("message", (message) => {
-    console.log(new Date(), "incoming message:", message);
-    if (message === "reset") {
-      board = getInitialBoard();
-    } else {
-      const move = JSON.parse(message);
-      console.log("move", move);
-      const { position, color } = move;
-      const [row, col] = position;
-      board[row][col] = color;
+    console.log("incoming message:", message);
+    const { type, ...rest } = JSON.parse(message);
+    let response;
+
+    switch (type) {
+      case "reset":
+        board.reset();
+        response = { type, board: board.getState() };
+        break;
+      case "move":
+        const { colIdx, color } = rest;
+        const winner = board.move(colIdx, color);
+        response = { type, board: board.getState(), winner, color };
+        break;
+      default:
+        throw new Error("Invalid message type");
     }
-    console.log(new Date(), "updated board state:", board);
-    ws.send(JSON.stringify(board));
+
+    ws.send(JSON.stringify(response));
   });
 });

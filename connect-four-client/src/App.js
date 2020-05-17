@@ -6,13 +6,26 @@ const ws = new WebSocket("ws://localhost:8080");
 function App() {
   const [board, setBoard] = useState(undefined);
   const [color, setColor] = useState(1);
+  const [winner, setWinner] = useState(undefined);
 
   // close ws on unmount
   useEffect(() => {
     ws.addEventListener("message", (message) => {
-      const updatedBoard = JSON.parse(message.data);
-      console.log("updated board state", updatedBoard);
-      setBoard(updatedBoard);
+      const { type, ...rest } = JSON.parse(message.data);
+
+      switch (type) {
+        case "reset":
+          setBoard(rest.board);
+          break;
+        case "move":
+          if (rest.winner) {
+            setWinner(rest.color);
+          }
+          setBoard(rest.board);
+          break;
+        default:
+          throw new Error("Invalid message type");
+      }
     });
 
     return () => {
@@ -29,10 +42,12 @@ function App() {
               <span
                 key={colIndex}
                 onClick={() => {
-                  ws.send(
-                    JSON.stringify({ position: [rowIndex, colIndex], color })
-                  );
-                  setColor((prevColor) => (prevColor === 1 ? 2 : 1));
+                  if (!winner) {
+                    ws.send(
+                      JSON.stringify({ type: "move", colIdx: colIndex, color }),
+                    );
+                    setColor((prevColor) => (prevColor === 1 ? 2 : 1));
+                  }
                 }}
               >
                 {cell}
@@ -40,7 +55,16 @@ function App() {
             ))}
           </div>
         ))}
-      <button onClick={() => ws.send("reset")}>reset board</button>
+      <button
+        onClick={() => {
+          setWinner(undefined);
+          setColor(winner || 1); // winner gets to go first next game
+          ws.send(JSON.stringify({ type: "reset" }));
+        }}
+      >
+        reset board
+      </button>
+      {winner && <div>player {winner} wins!</div>}
     </div>
   );
 }
