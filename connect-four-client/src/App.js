@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
+
 import "./App.css";
 
 const ws = new WebSocket("ws://localhost:8080");
 
 function App() {
-  const [board, setBoard] = useState(undefined);
-  const [color, setColor] = useState(1);
-  const [winner, setWinner] = useState(undefined);
+  const [board, setBoard] = useState();
+  const [color, setColor] = useState();
+  const [winner, setWinner] = useState();
+  const [playerId, setPlayerId] = useState();
 
   // close ws on unmount
   useEffect(() => {
@@ -14,6 +16,11 @@ function App() {
       const { type, ...rest } = JSON.parse(message.data);
 
       switch (type) {
+        case "new":
+          setColor(rest.color);
+          setPlayerId(rest.playerId);
+          setBoard(rest.board);
+          break;
         case "reset":
           setBoard(rest.board);
           break;
@@ -35,6 +42,7 @@ function App() {
 
   return (
     <div className="App">
+      {playerId && <div>Player {color}</div>}
       {board &&
         board.map((row, rowIndex) => (
           <div key={rowIndex}>
@@ -46,7 +54,6 @@ function App() {
                     ws.send(
                       JSON.stringify({ type: "move", colIdx: colIndex, color }),
                     );
-                    setColor((prevColor) => (prevColor === 1 ? 2 : 1));
                   }
                 }}
               >
@@ -58,7 +65,6 @@ function App() {
       <button
         onClick={() => {
           setWinner(undefined);
-          setColor(winner || 1); // winner gets to go first next game
           ws.send(JSON.stringify({ type: "reset" }));
         }}
       >
