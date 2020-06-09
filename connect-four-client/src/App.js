@@ -118,7 +118,9 @@ function App() {
           >
             reset board
           </button>
-          {winner && <div>player {winner} wins!</div>}
+          {myTurn !== undefined &&
+            <div>{myTurn ? "your turn!" : "waiting on other player..."}</div>}
+          {winner && <div>{winner === color ? "you win!" : "you lose :("}</div>}
         </>}
     </div>
   );

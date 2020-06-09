@@ -48,11 +48,21 @@ wss.on("connection", (ws) => {
       case "incoming-move": {
         const { moveIndex, sessionId, color } = rest;
         const board = sessions[sessionId];
-        board.move(moveIndex, color);
-        response = { type, board: board.getState() };
+        const winner = board.move(moveIndex, color);
+
+        const responseType = winner ? "winner" : type;
+        const response = {
+          type: responseType,
+          board: board.getState(),
+        };
+        if (winner) {
+          response.color = color;
+        }
 
         for (const client of wss.clients) {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
+          if (
+            (winner || client !== ws) && client.readyState === WebSocket.OPEN
+          ) {
             client.send(JSON.stringify(response));
           }
         }

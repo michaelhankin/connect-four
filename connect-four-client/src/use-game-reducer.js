@@ -66,6 +66,15 @@ function gameReducer(state, action) {
         board: updatedBoard,
       };
     }
+    case "winner": {
+      const { board, color } = action;
+      return {
+        ...state,
+        board,
+        myTurn: undefined,
+        winner: color,
+      };
+    }
     default:
       throw new Error("Invalid action type");
   }
