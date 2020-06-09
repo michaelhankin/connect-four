@@ -1,71 +1,47 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
+
+import useGameReducer from "./use-game-reducer";
 
 import "./App.css";
 
 const ws = new WebSocket("ws://localhost:8080");
 
 function App() {
-  const [board, setBoard] = useState();
-  const [color, setColor] = useState();
-  const [winner, setWinner] = useState();
-  const [playerId, setPlayerId] = useState();
-  const [sessionId, setSessionId] = useState();
-  const [joinSessionId, setJoinSessionId] = useState("");
-  const [myTurn, setMyTurn] = useState();
-  // const [waitingForOtherPlayer, setWaitingForOtherPlayer] = useState()
+  const [state, dispatch] = useGameReducer({
+    board: undefined,
+    color: undefined,
+    winner: undefined,
+    sessionId: undefined,
+    joinSessionId: "",
+    myTurn: undefined,
+  });
+  const { board, color, winner, sessionId, joinSessionId, myTurn } = state;
 
   // close ws on unmount
   useEffect(() => {
-    ws.addEventListener("message", (message) => {
-      const { type, ...rest } = JSON.parse(message.data);
+    ws.addEventListener("close", () => {
+      console.log("connection closing :(");
+    });
 
-      // TODO: create reducer, map message types to actions
-      switch (type) {
-        case "create-session": {
-          setSessionId(rest.sessionId);
-          console.log("session id", rest.sessionId);
-          setPlayerId(rest.playerId);
-          setColor(rest.color);
-          // console.log(rest.board[0]);
-          setBoard(rest.board);
-          setMyTurn(true);
-          setJoinSessionId("");
-          break;
-        }
-        case "join-session": {
-          console.log(message.data);
-          setPlayerId(rest.playerId);
-          setColor(rest.color);
-          setBoard(rest.board);
-          setMyTurn(false);
-          setSessionId(joinSessionId);
-          setJoinSessionId("");
-          break;
-        }
-        // case "new":
-        //   setColor(rest.color);
-        //   setPlayerId(rest.playerId);
-        //   setBoard(rest.board);
-        //   break;
-        // case "reset":
-        //   setBoard(rest.board);
-        //   break;
-        case "move":
-          setMyTurn(true);
-          if (rest.winner) {
-            setWinner(rest.color);
-          }
-          setBoard(rest.board);
-          break;
-        default:
+    ws.addEventListener("message", (message) => {
+      console.log("incoming message:", message.data);
+      const action = JSON.parse(message.data);
+
+      try {
+        dispatch(action);
+      } catch (err) {
+        if (err.message === "Invalid action type") {
           throw new Error("Invalid message type");
+        } else {
+          throw err;
+        }
       }
     });
 
     return () => {
       ws.close();
     };
-  }, [joinSessionId]);
+  }, [dispatch]);
 
   return (
     <div className="App">
@@ -95,13 +71,16 @@ function App() {
           type="text"
           value={joinSessionId}
           onChange={(e) => {
-            setJoinSessionId(e.target.value);
+            dispatch(
+              { type: "set-joinSessionId", joinSessionId: e.target.value },
+            );
           }}
         />
       </div>}
       {sessionId &&
         <>
-          {playerId && <div>Player {color}</div>}
+          <div>Player {color}</div>
+          <div>Session ID: {sessionId}</div>
           {board &&
             board.map((row, rowIndex) => (
               <div key={rowIndex}>
@@ -110,25 +89,19 @@ function App() {
                     key={colIndex}
                     onClick={() => {
                       if (!winner && myTurn) {
-                        setBoard((prevBoard) => {
-                          let moveRowIdx = -1;
-                          for (let i = prevBoard.length - 1; i >= 0; i--) {
-                            if (prevBoard[i][colIndex] === 0) {
-                              moveRowIdx = i;
-                              break;
-                            }
-                          }
-                          if (moveRowIdx !== -1) {
-                            prevBoard[moveRowIdx][colIndex] = color;
-                            ws.send(
-                              JSON.stringify(
-                                { type: "move", colIdx: colIndex, color },
-                              ),
-                            );
-                            setMyTurn(false);
-                          }
-                          return prevBoard;
-                        });
+                        dispatch(
+                          { type: "outgoing-move", moveIndex: colIndex },
+                        );
+                        ws.send(
+                          JSON.stringify(
+                            {
+                              type: "incoming-move",
+                              moveIndex: colIndex,
+                              sessionId,
+                              color,
+                            },
+                          ),
+                        );
                       }
                     }}
                   >
@@ -139,7 +112,7 @@ function App() {
             ))}
           <button
             onClick={() => {
-              setWinner(undefined);
+              // setWinner(undefined);
               ws.send(JSON.stringify({ type: "reset" }));
             }}
           >

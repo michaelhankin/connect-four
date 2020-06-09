@@ -4,17 +4,6 @@ const uuidv4 = require("uuid").v4;
 const Board = require("./Board");
 
 const wss = new WebSocket.Server({ port: 8080 });
-let sessionId;
-// let board;
-let playerOneId;
-let playerTwoId;
-
-/** 
- * session schema
- * players: { id: Color }
- * board: Board
- * id: string
- */
 const sessions = {};
 
 console.log("server listening on port 8080");
@@ -27,59 +16,40 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     console.log("incoming message:", message);
     const { type, ...rest } = JSON.parse(message);
-    // let response;
 
     switch (type) {
       case "create-session": {
-        const playerId = uuidv4();
+        // TODO: make sessionIds shorter
         const sessionId = uuidv4();
         const color = 1;
         const board = new Board();
-        const session = {
-          id: sessionId,
-          players: {
-            [playerId]: color,
-          },
-          board,
-        };
-        sessions[sessionId] = session;
+        sessions[sessionId] = board;
         const response = {
           type,
-          board: board.getState(),
-          sessionId,
-          playerId,
           color,
+          sessionId,
+          board: board.getState(),
         };
         ws.send(JSON.stringify(response));
         break;
       }
       case "join-session": {
         // TODO: fail if there are already 2 players in the session
-        const playerId = uuidv4();
         const color = 2;
-        const { board, players } = sessions[rest.sessionId];
-        players[playerId] = color;
+        const board = sessions[rest.sessionId];
         const response = {
           type,
-          board: board.getState(),
           color,
-          playerId,
+          board: board.getState(),
         };
         ws.send(JSON.stringify(response));
         break;
       }
-      // case "reset":
-      //   board.reset();
-      //   response = { type, board: board.getState() };
-      //   break;
-      case "move": {
-        // TODO: rename `colIdx` to `column`
-        const { colIdx, sessionId, playerId } = rest;
-        const { board, players } = sessions[sessionId];
-        const { color } = players[playerId];
-        const winner = board.move(colIdx, color);
-        response = { type, board: board.getState(), winner, color };
-        // TODO: send a separate message if there's a winner
+      case "incoming-move": {
+        const { moveIndex, sessionId, color } = rest;
+        const board = sessions[sessionId];
+        board.move(moveIndex, color);
+        response = { type, board: board.getState() };
 
         for (const client of wss.clients) {
           if (client !== ws && client.readyState === WebSocket.OPEN) {
