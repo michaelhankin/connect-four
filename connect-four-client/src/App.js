@@ -1,21 +1,22 @@
 import React, { useEffect } from "react";
 
-import useGameReducer from "./use-game-reducer";
+import useGameContext, { GameProvider } from "./use-game-context";
+import SessionControls from "./SessionControls";
 
 import "./App.css";
 
 const ws = new WebSocket("ws://localhost:8080");
 
 function App() {
-  const [state, dispatch] = useGameReducer({
-    board: undefined,
-    color: undefined,
-    winner: undefined,
-    sessionId: undefined,
-    joinSessionId: "",
-    myTurn: undefined,
-  });
-  const { board, color, winner, sessionId, joinSessionId, myTurn } = state;
+  const [state, dispatch] = useGameContext();
+  const {
+    board,
+    color,
+    winner,
+    sessionId,
+    myTurn,
+    waitingForOtherPlayerToJoin,
+  } = state;
 
   // close ws on unmount
   useEffect(() => {
@@ -45,38 +46,7 @@ function App() {
 
   return (
     <div className="App">
-      {!sessionId && <div>
-        <button
-          onClick={() => {
-            const message = {
-              type: "create-session",
-            };
-            ws.send(JSON.stringify(message));
-          }}
-        >
-          create session
-        </button>
-        <button
-          onClick={() => {
-            const message = {
-              type: "join-session",
-              sessionId: joinSessionId,
-            };
-            ws.send(JSON.stringify(message));
-          }}
-        >
-          join session
-        </button>
-        <input
-          type="text"
-          value={joinSessionId}
-          onChange={(e) => {
-            dispatch(
-              { type: "set-joinSessionId", joinSessionId: e.target.value },
-            );
-          }}
-        />
-      </div>}
+      {!sessionId && <SessionControls />}
       {sessionId &&
         <>
           <div>Player {color}</div>
@@ -88,7 +58,7 @@ function App() {
                   <span
                     key={colIndex}
                     onClick={() => {
-                      if (!winner && myTurn) {
+                      if (!winner && !waitingForOtherPlayerToJoin && myTurn) {
                         dispatch(
                           { type: "outgoing-move", moveIndex: colIndex },
                         );
@@ -110,20 +80,45 @@ function App() {
                 ))}
               </div>
             ))}
-          <button
-            onClick={() => {
-              // setWinner(undefined);
-              ws.send(JSON.stringify({ type: "reset" }));
-            }}
-          >
-            reset board
-          </button>
           {myTurn !== undefined &&
-            <div>{myTurn ? "your turn!" : "waiting on other player..."}</div>}
-          {winner && <div>{winner === color ? "you win!" : "you lose :("}</div>}
+            waitingForOtherPlayerToJoin
+            ? <div>waiting for other player to join...</div>
+            : <div>{myTurn ? "your turn!" : "waiting on other player..."}</div>}
+          {winner &&
+            <>
+              <div>{winner === color ? "you win!" : "you lose :("}</div>
+
+              <button
+                onClick={() => {
+                  // setWinner(undefined);
+                  ws.send(JSON.stringify({ type: "reset" }));
+                }}
+              >
+                play again
+              </button>
+            </>}
         </>}
     </div>
   );
 }
 
-export default App;
+function AppWrapper() {
+  const providerProps = {
+    ws,
+    board: undefined,
+    color: undefined,
+    winner: undefined,
+    sessionId: undefined,
+    joinSessionId: "",
+    myTurn: undefined,
+    waitingForOtherPlayerToJoin: undefined,
+  };
+
+  return (
+    <GameProvider {...providerProps}>
+      <App />
+    </GameProvider>
+  );
+}
+
+export default AppWrapper;

@@ -4,6 +4,7 @@ const uuidv4 = require("uuid").v4;
 const Board = require("./Board");
 
 const wss = new WebSocket.Server({ port: 8080 });
+// TODO: store ws's for each player in each session
 const sessions = {};
 
 console.log("server listening on port 8080");
@@ -43,6 +44,13 @@ wss.on("connection", (ws) => {
           board: board.getState(),
         };
         ws.send(JSON.stringify(response));
+        for (const client of wss.clients) {
+          if (
+            client !== ws && client.readyState === WebSocket.OPEN
+          ) {
+            client.send(JSON.stringify({ type: "other-player-joined" }));
+          }
+        }
         break;
       }
       case "incoming-move": {
@@ -67,6 +75,16 @@ wss.on("connection", (ws) => {
           }
         }
         break;
+      }
+      case "new-game": {
+        const { sessionId } = rest;
+        const board = sessions[sessionId];
+        board.reset();
+        for (const client of wss.clients) {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type, board }));
+          }
+        }
       }
       default:
         throw new Error("Invalid message type");

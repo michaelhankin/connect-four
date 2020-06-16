@@ -1,4 +1,4 @@
-import { useReducer } from "react";
+import React, { useReducer, useContext } from "react";
 
 function updateBoard(board, moveIndex, color) {
   const updatedBoard = board.map((row) => [...row]);
@@ -26,6 +26,13 @@ function gameReducer(state, action) {
         sessionId,
         joinSessionId: "",
         myTurn: true,
+        waitingForOtherPlayerToJoin: true,
+      };
+    }
+    case "other-player-joined": {
+      return {
+        ...state,
+        waitingForOtherPlayerToJoin: false,
       };
     }
     case "join-session": {
@@ -38,6 +45,7 @@ function gameReducer(state, action) {
         sessionId: joinSessionId,
         joinSessionId: "",
         myTurn: false,
+        waitingForOtherPlayerToJoin: false,
       };
     }
     case "set-joinSessionId": {
@@ -75,11 +83,44 @@ function gameReducer(state, action) {
         winner: color,
       };
     }
+    case "new-game": {
+      const { board } = action;
+      const { winner, color } = state;
+      return {
+        ...state,
+        board,
+        myTurn: winner === color,
+        winner: undefined,
+      };
+    }
     default:
       throw new Error("Invalid action type");
   }
 }
 
-export default function useGameReducer(initialState) {
-  return useReducer(gameReducer, initialState);
+const GameContext = React.createContext();
+
+function GameProvider(props) {
+  const { children, ...initialState } = props;
+  const [state, dispatch] = useReducer(gameReducer, initialState);
+
+  return (
+    <GameContext.Provider value={{ state, dispatch }}>
+      {children}
+    </GameContext.Provider>
+  );
 }
+
+function useGameContext() {
+  const context = useContext(GameContext);
+  if (context === undefined) {
+    throw new Error("useGameContext must be used within a GameProvider");
+  }
+
+  const { state, dispatch } = context;
+  return [state, dispatch];
+}
+
+export { GameProvider };
+
+export default useGameContext;
