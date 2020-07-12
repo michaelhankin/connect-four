@@ -1,7 +1,7 @@
 const WebSocket = require("ws");
-const uuidv4 = require("uuid").v4;
 
 const Board = require("./Board");
+const { generateId } = require("./util");
 
 const wss = new WebSocket.Server({ port: 8080 });
 // TODO: store ws's for each player in each session
@@ -20,8 +20,9 @@ wss.on("connection", (ws) => {
 
     switch (type) {
       case "create-session": {
-        // TODO: make sessionIds shorter
-        const sessionId = uuidv4();
+        const sessionId = generateId();
+        console.log("session Id", sessionId);
+
         const color = 1;
         const board = new Board();
         sessions[sessionId] = board;
@@ -45,9 +46,7 @@ wss.on("connection", (ws) => {
         };
         ws.send(JSON.stringify(response));
         for (const client of wss.clients) {
-          if (
-            client !== ws && client.readyState === WebSocket.OPEN
-          ) {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: "other-player-joined" }));
           }
         }
@@ -69,7 +68,8 @@ wss.on("connection", (ws) => {
 
         for (const client of wss.clients) {
           if (
-            (winner || client !== ws) && client.readyState === WebSocket.OPEN
+            (winner || client !== ws) &&
+            client.readyState === WebSocket.OPEN
           ) {
             client.send(JSON.stringify(response));
           }

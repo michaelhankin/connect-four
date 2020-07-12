@@ -30,18 +30,14 @@ function Game() {
                 key={colIndex}
                 onClick={() => {
                   if (canMove) {
-                    dispatch(
-                      { type: "outgoing-move", moveIndex: colIndex },
-                    );
+                    dispatch({ type: "outgoing-move", moveIndex: colIndex });
                     ws.send(
-                      JSON.stringify(
-                        {
-                          type: "incoming-move",
-                          moveIndex: colIndex,
-                          sessionId,
-                          color,
-                        },
-                      ),
+                      JSON.stringify({
+                        type: "incoming-move",
+                        moveIndex: colIndex,
+                        sessionId,
+                        color,
+                      })
                     );
                   }
                 }}
