@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "nanoid": "^3.1.10",
-    "ws": "^7.2.5"
+    "ws": "^7.4.6"
   },
   "devDependencies": {
     "nodemon": "^2.0.3"
